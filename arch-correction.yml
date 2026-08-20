@@ -1,0 +1,47 @@
+schema_version: '1.0'
+workflow:
+  id: arch-correction
+  name: Architecture Correction
+  version: 1.0.0
+  author: agent-demo
+  description: 'Rare, human-triggered path: invoke when a human reviewing a gate identifies an unresolved
+    architecture question that needs the architecture-decision agent (ARCH-01 in the built-in roster)
+    to reconsider. Re-runs the named agent (arch_agent_id) against the same ticket and gates the fresh
+    decision. Does not automatically resume the primary chain afterward -- re-invoke sdlc-from-ticket.yml
+    (or resume the paused run it came from) once the corrected decision is approved.'
+requires:
+  speckit_version: '>=0.7.2'
+inputs:
+  ticket_id:
+    type: string
+    required: true
+    description: Jira ticket id (e.g. EO-78493). The trigger that invokes this workflow must have already
+      written the ticket's summary/description/type/labels to .specify/workflows/handoffs/{ticket_id}/_ticket_*.txt
+      -- see bootstrap_ticket.py.
+  arch_agent_id:
+    type: string
+    required: true
+    description: Agent id whose decision needs correcting, e.g. arch-01.
+  arch_correction_gate_verdict:
+    type: string
+    required: false
+    default: ''
+steps:
+- id: arch_correction_run
+  type: shell
+  timeout: 300
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id "{{ inputs.arch_agent_id
+    }}" --ticket-id "{{ inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{
+    context.workflow_dir }}/scripts/run_agent_step.py" --agent-id "{{ inputs.arch_agent_id }}" --ticket-id
+    "{{ inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}"
+- id: arch_correction_gate
+  type: gate
+  message: Review the corrected decision for ticket {{ inputs.ticket_id }} before resuming the primary
+    chain.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: arch_correction_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/{{ inputs.arch_agent_id
+    }}.md'

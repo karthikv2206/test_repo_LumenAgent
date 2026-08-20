@@ -1,0 +1,26 @@
+schema_version: "1.0"
+workflow:
+  id: "generate-agent-instructions"
+  name: "Generate Agent Instructions"
+  version: "2.0.0"
+  author: "agent-demo"
+  description: "Not invoked by AI Team's own publish flow -- this workflow package itself IS what gets published (verbatim, unresolved) to a common-agents repo. A developer later runs `specify workflow add <that-repo>` inside their OWN application repo (where Context Hub has already pushed real instruction files to .github/instructions/), then `specify workflow run generate-agent-instructions -i agent_ids=gov-01,feat-01,...` for the agents they want. Cross-platform (Windows/Linux/macOS) -- delegates all logic to scripts/generate_instructions.py rather than a PowerShell shell step, so there is no OS-specific dependency. Resolves agents in real pace-aidlc dependency order and hands each agent's already-generated output to its downstream dependent (see DEPENDS_ON in the script) -- this is the actual agent-to-agent handoff, done via plain Python control flow and atomic file writes, not Spec Kit's own step-to-step chaining (whose `type: prompt` step hardcodes empty stdout in this CLI version -- confirmed bug, not usable). Hard-stops per-agent on NO_CONTEXT_FOUND or a refusal-shaped (too-short) response, and halts the rest of the chain rather than generating downstream agents against a broken/missing dependency."
+
+requires:
+  speckit_version: ">=0.7.2"
+
+inputs:
+  agent_ids:
+    type: string
+    required: true
+    description: "Comma-separated agent ids, any order -- resolved in real dependency order automatically."
+
+steps:
+  - id: generate
+    type: shell
+    # python3 || python: some Windows installs only register a broken
+    # Microsoft Store stub as `python3` (App Execution Aliases) while `python`
+    # resolves correctly; `||` is supported by both cmd.exe and POSIX shells,
+    # so this falls back correctly on Windows without breaking the normal
+    # `python3`-only case on Linux/macOS.
+    run: "python3 \"{{ context.workflow_dir }}/scripts/generate_instructions.py\" --agent-ids \"{{ inputs.agent_ids }}\" --workflow-dir \"{{ context.workflow_dir }}\" || python \"{{ context.workflow_dir }}/scripts/generate_instructions.py\" --agent-ids \"{{ inputs.agent_ids }}\" --workflow-dir \"{{ context.workflow_dir }}\""
