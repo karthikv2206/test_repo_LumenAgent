@@ -1,0 +1,253 @@
+schema_version: '1.0'
+workflow:
+  id: sdlc-from-ticket
+  name: SDLC From Ticket
+  version: 1.0.0
+  author: Lumen AI Team
+  description: Generated from agents/_manifest.json at publish time -- do not hand-edit; re-publish to
+    regenerate. Runs the full agent chain for one Jira ticket in dependency order (GOV-01 (gov-01), FEAT-01
+    (feat-01), ARCH-01 (arch-01), FEAT-02 (feat-02), REQ-01 (req-01), REQ-02 (req-02), DEV-01 (dev-01),
+    TDD-01 (tdd-01), DEV-02 (dev-02), REV-01 (rev-01)), pausing for human approval after every hop via
+    a gate step. Content (ticket text, agent replies) never flows through this file's own shell templating
+    -- every `run:` line carries only fixed CLI flags, with all real content read from ticket-scoped files
+    by the invoked script. On a 'fix_required' verdict from the terminal gate, invoke fix-cycle.yml as
+    a new run against the same ticket_id, rather than looping inside this run.
+requires:
+  speckit_version: '>=0.7.2'
+inputs:
+  ticket_id:
+    type: string
+    required: true
+    description: Jira ticket id (e.g. EO-78493). The trigger that invokes this workflow must have already
+      written the ticket's summary/description/type/labels to .specify/workflows/handoffs/{ticket_id}/_ticket_*.txt
+      -- see bootstrap_ticket.py.
+  gov-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  feat-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  arch-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  feat-02_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  req-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  req-02_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  dev-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  tdd-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  dev-02_preflight_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  dev-02_review_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  rev-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+steps:
+- id: bootstrap
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/bootstrap_ticket.py" --ticket-id "{{ inputs.ticket_id
+    }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir }}/scripts/bootstrap_ticket.py"
+    --ticket-id "{{ inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}"
+- id: gov-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id gov-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id gov-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: gov-01_gate
+  type: gate
+  message: Review GOV-01 (Governance) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: gov-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/gov-01.md'
+- id: feat-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id feat-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id feat-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: feat-01_gate
+  type: gate
+  message: Review FEAT-01 (Feature Intake) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: feat-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/feat-01.md'
+- id: arch-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id arch-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id arch-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: arch-01_gate
+  type: gate
+  message: Review ARCH-01 (Architecture Decision) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: arch-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/arch-01.md'
+- id: feat-02_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id feat-02 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id feat-02 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: feat-02_gate
+  type: gate
+  message: Review FEAT-02 (Decomposition) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: feat-02_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/feat-02.md'
+- id: req-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id req-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id req-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: req-01_gate
+  type: gate
+  message: Review REQ-01 (Requirements & BDD) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: req-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/req-01.md'
+- id: req-02_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id req-02 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id req-02 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: req-02_gate
+  type: gate
+  message: Review REQ-02 (Readiness Gate) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: req-02_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/req-02.md'
+- id: dev-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id dev-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id dev-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: dev-01_gate
+  type: gate
+  message: Review DEV-01 (Implementation Plan) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: dev-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/dev-01.md'
+- id: tdd-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id tdd-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id tdd-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: tdd-01_gate
+  type: gate
+  message: Review TDD-01 (Test-First Design) output for ticket {{ inputs.ticket_id }} before continuing.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: tdd-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/tdd-01.md'
+- id: dev-02_preflight_gate
+  type: gate
+  message: 'AUTHORIZATION REQUIRED: DEV-02 (Scoped Build) is about to take real, hard-to-reverse action
+    (file edits / commits) against this repository for ticket {{ inputs.ticket_id }}, based on the upstream
+    output below. Approve only if that output is correct and DEV-02 should proceed for real.'
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: dev-02_preflight_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/tdd-01.md'
+- id: dev-02_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id dev-02 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id dev-02 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 960
+- id: dev-02_review_gate
+  type: gate
+  message: Review what DEV-02 actually did for ticket {{ inputs.ticket_id }} before continuing -- this
+    is verification of the real action taken, a separate decision from the authorization above.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: dev-02_review_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/dev-02.md'
+- id: rev-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id rev-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id rev-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: rev-01_gate
+  type: gate
+  message: REV-01's final verdict for ticket {{ inputs.ticket_id }}. Choose fix_required to route back
+    for a fresh fix-cycle run; approve completes this delivery.
+  options:
+  - approve
+  - fix_required
+  on_reject: skip
+  verdict_input: rev-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/rev-01.md'
+- id: finalize
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/finalize_run.py" --ticket-id "{{ inputs.ticket_id }}"
+    --workflow-dir "{{ context.workflow_dir }}" --terminal-agent-id rev-01 --verdict "{{ steps.rev-01_gate.output.choice
+    }}" || python "{{ context.workflow_dir }}/scripts/finalize_run.py" --ticket-id "{{ inputs.ticket_id
+    }}" --workflow-dir "{{ context.workflow_dir }}" --terminal-agent-id rev-01 --verdict "{{ steps.rev-01_gate.output.choice
+    }}"

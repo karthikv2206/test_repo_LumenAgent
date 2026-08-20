@@ -1,0 +1,82 @@
+{
+  "arch-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "feat-01",
+    "gateType": "standard",
+    "name": "ARCH-01",
+    "role": "Architecture Decision"
+  },
+  "dev-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "req-02",
+    "gateType": "standard",
+    "name": "DEV-01",
+    "role": "Implementation Plan"
+  },
+  "dev-02": {
+    "autonomous": true,
+    "contextDepth": 1,
+    "dependsOn": "tdd-01",
+    "gateType": "standard",
+    "name": "DEV-02",
+    "role": "Scoped Build"
+  },
+  "feat-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "gov-01",
+    "gateType": "standard",
+    "name": "FEAT-01",
+    "role": "Feature Intake"
+  },
+  "feat-02": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "arch-01",
+    "gateType": "standard",
+    "name": "FEAT-02",
+    "role": "Decomposition"
+  },
+  "gov-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": null,
+    "gateType": "standard",
+    "name": "GOV-01",
+    "role": "Governance"
+  },
+  "req-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "feat-02",
+    "gateType": "standard",
+    "name": "REQ-01",
+    "role": "Requirements & BDD"
+  },
+  "req-02": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "req-01",
+    "gateType": "standard",
+    "name": "REQ-02",
+    "role": "Readiness Gate"
+  },
+  "rev-01": {
+    "autonomous": false,
+    "contextDepth": 3,
+    "dependsOn": "dev-02",
+    "gateType": "terminal_review",
+    "name": "REV-01",
+    "role": "Review & Fix Loop"
+  },
+  "tdd-01": {
+    "autonomous": false,
+    "contextDepth": 1,
+    "dependsOn": "dev-01",
+    "gateType": "standard",
+    "name": "TDD-01",
+    "role": "Test-First Design"
+  }
+}

@@ -1,0 +1,86 @@
+schema_version: '1.0'
+workflow:
+  id: fix-cycle
+  name: Fix Cycle
+  version: 1.0.0
+  author: Lumen AI Team
+  description: Generated from agents/_manifest.json at publish time -- do not hand-edit; re-publish to
+    regenerate. Invoke as a brand-new run (`specify workflow run fix-cycle -i ticket_id=<id>`) each time
+    sdlc-from-ticket.yml's (or a prior fix-cycle's) terminal gate records fix_required. Re-runs DEV-02
+    (dev-02) with REV-01's prior verdict folded in as extra context, then re-runs REV-01 (rev-01). Never
+    a loop nested inside another run -- each fix-cycle invocation is its own run_id; handoff files are
+    ticket-scoped and versioned (dev-02.v1.md, .v2.md, ...) so earlier attempts remain inspectable.
+requires:
+  speckit_version: '>=0.7.2'
+inputs:
+  ticket_id:
+    type: string
+    required: true
+    description: Jira ticket id (e.g. EO-78493). The trigger that invokes this workflow must have already
+      written the ticket's summary/description/type/labels to .specify/workflows/handoffs/{ticket_id}/_ticket_*.txt
+      -- see bootstrap_ticket.py.
+  dev-02_preflight_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  dev-02_review_gate_verdict:
+    type: string
+    required: false
+    default: ''
+  rev-01_gate_verdict:
+    type: string
+    required: false
+    default: ''
+steps:
+- id: dev-02_preflight_gate
+  type: gate
+  message: 'AUTHORIZATION REQUIRED: DEV-02 is about to redo its real, hard-to-reverse action for ticket
+    {{ inputs.ticket_id }}, based on REV-01''s prior fix-required verdict below. Approve only if that
+    verdict is correct and a new attempt should proceed for real.'
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: dev-02_preflight_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/rev-01.md'
+- id: dev-02_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id dev-02 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" --extra-context-agent-id rev-01 ||
+    python "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id dev-02 --ticket-id "{{ inputs.ticket_id
+    }}" --workflow-dir "{{ context.workflow_dir }}" --extra-context-agent-id rev-01
+  timeout: 960
+- id: dev-02_review_gate
+  type: gate
+  message: Review what DEV-02 actually did on this fix-cycle attempt for ticket {{ inputs.ticket_id }}
+    before REV-01 reviews it again.
+  options:
+  - approve
+  - reject
+  on_reject: abort
+  verdict_input: dev-02_review_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/dev-02.md'
+- id: rev-01_run
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/run_agent_step.py" --agent-id rev-01 --ticket-id "{{
+    inputs.ticket_id }}" --workflow-dir "{{ context.workflow_dir }}" || python "{{ context.workflow_dir
+    }}/scripts/run_agent_step.py" --agent-id rev-01 --ticket-id "{{ inputs.ticket_id }}" --workflow-dir
+    "{{ context.workflow_dir }}"
+  timeout: 300
+- id: rev-01_gate
+  type: gate
+  message: REV-01's verdict on this fix-cycle attempt for ticket {{ inputs.ticket_id }}. Choose fix_required
+    to run another fix-cycle; approve completes this delivery.
+  options:
+  - approve
+  - fix_required
+  on_reject: skip
+  verdict_input: rev-01_gate_verdict
+  show_file: '{{ context.workflow_dir }}/.specify/workflows/handoffs/{{ inputs.ticket_id }}/rev-01.md'
+- id: finalize
+  type: shell
+  run: python3 "{{ context.workflow_dir }}/scripts/finalize_run.py" --ticket-id "{{ inputs.ticket_id }}"
+    --workflow-dir "{{ context.workflow_dir }}" --terminal-agent-id rev-01 --verdict "{{ steps.rev-01_gate.output.choice
+    }}" || python "{{ context.workflow_dir }}/scripts/finalize_run.py" --ticket-id "{{ inputs.ticket_id
+    }}" --workflow-dir "{{ context.workflow_dir }}" --terminal-agent-id rev-01 --verdict "{{ steps.rev-01_gate.output.choice
+    }}"
